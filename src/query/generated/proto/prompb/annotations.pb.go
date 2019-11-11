@@ -43,6 +43,7 @@
 		Label
 		Labels
 		LabelMatcher
+		Exemplar
 */
 package prompb
 

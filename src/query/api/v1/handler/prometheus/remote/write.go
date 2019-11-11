@@ -452,11 +452,11 @@ func newPromTSIter(timeseries []prompb.TimeSeries, tagOpts models.TagOptions) *p
 	// is reset, we don't have to generate them twice.
 	var (
 		tags       = make([]models.Tags, 0, len(timeseries))
-		datapoints = make([]ts.Datapoints, 0, len(timeseries))
+		datapoints = make([]storage.Datapoints, 0, len(timeseries))
 	)
 	for _, promTS := range timeseries {
 		tags = append(tags, storage.PromLabelsToM3Tags(promTS.Labels, tagOpts))
-		datapoints = append(datapoints, storage.PromSamplesToM3Datapoints(promTS.Samples))
+		datapoints = append(datapoints, storage.PromSamplesToM3DatapointsAnnotated(promTS.Samples))
 	}
 
 	return &promTSIter{
@@ -469,7 +469,7 @@ func newPromTSIter(timeseries []prompb.TimeSeries, tagOpts models.TagOptions) *p
 type promTSIter struct {
 	idx        int
 	tags       []models.Tags
-	datapoints []ts.Datapoints
+	datapoints []storage.Datapoints
 }
 
 func (i *promTSIter) Next() bool {
@@ -482,7 +482,12 @@ func (i *promTSIter) Current() (models.Tags, ts.Datapoints, xtime.Unit, []byte) 
 		return models.EmptyTags(), nil, 0, nil
 	}
 
-	return i.tags[i.idx], i.datapoints[i.idx], xtime.Millisecond, nil
+	curr := i.datapoints[i.idx]
+	datapoints := make(ts.Datapoints, 0, len(curr))
+	for _, datapoint := range curr {
+		datapoints = append(datapoints, datapoint.Datapoint)
+	}
+	return i.tags[i.idx], datapoints, xtime.Millisecond, curr[0].Annotation
 }
 
 func (i *promTSIter) Reset() error {

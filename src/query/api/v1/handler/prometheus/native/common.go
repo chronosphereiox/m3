@@ -265,10 +265,17 @@ func filterNaNSeries(
 
 func renderResultsJSON(
 	w io.Writer,
-	series []*ts.Series,
-	params models.RequestParams,
+	result ServeResult,
 	keepNans bool,
+	includeExemplars bool,
 ) {
+	series := result.SeriesList
+	params := result.RequestParams
+
+	if len(result.ExemplarsList) == 0 {
+		includeExemplars = false
+	}
+
 	// NB: if dropping NaNs, drop series with only NaNs from output entirely.
 	if !keepNans {
 		series = filterNaNSeries(series, params.Start, params.End)
@@ -288,7 +295,7 @@ func renderResultsJSON(
 
 	jw.BeginObjectField("result")
 	jw.BeginArray()
-	for _, s := range series {
+	for seriesIdx, s := range series {
 		jw.BeginObject()
 		jw.BeginObjectField("metric")
 		jw.BeginObject()
@@ -301,9 +308,14 @@ func renderResultsJSON(
 		jw.BeginObjectField("values")
 		jw.BeginArray()
 		vals := s.Values()
+		var exemplars ts.SeriesExemplar
+		if includeExemplars && seriesIdx < len(result.ExemplarsList) {
+			exemplars = result.ExemplarsList[seriesIdx]
+		}
 		length := s.Len()
-		for i := 0; i < length; i++ {
-			dp := vals.DatapointAt(i)
+		examplarIdx := 0
+		for timeIdx := 0; timeIdx < length; timeIdx++ {
+			dp := vals.DatapointAt(timeIdx)
 
 			// If keepNaNs is set to false and the value is NaN, drop it from the response.
 			if !keepNans && math.IsNaN(dp.Value) {
@@ -322,6 +334,20 @@ func renderResultsJSON(
 			jw.BeginArray()
 			jw.WriteInt(int(dp.Timestamp.Unix()))
 			jw.WriteString(utils.FormatFloat(dp.Value))
+			if includeExemplars && examplarIdx < len(exemplars) {
+				if exemplars[examplarIdx].Timestamp.Unix() <= dp.Timestamp.Unix() {
+					for {
+						i := examplarIdx + 1
+						if i < len(exemplars) && exemplars[i].Timestamp.Unix() <= dp.Timestamp.Unix() {
+							examplarIdx++
+						} else {
+							break
+						}
+					}
+					jw.WriteString(string(exemplars[examplarIdx].Annotation))
+					examplarIdx++
+				}
+			}
 			jw.EndArray()
 		}
 		jw.EndArray()
