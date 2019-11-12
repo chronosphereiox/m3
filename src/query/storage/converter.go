@@ -23,7 +23,6 @@ package storage
 import (
 	"bytes"
 	"fmt"
-	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -273,10 +272,7 @@ func iteratorToTsSeries(
 		dp, _, annotation := iter.Current()
 		datapoints = append(datapoints, ts.Datapoint{Timestamp: dp.Timestamp, Value: dp.Value})
 		if len(annotation) > 0 {
-			fmt.Printf("annon: %s dp: %d\n", string(annotation), dp.Timestamp.Unix())
-			exemplars = append(exemplars, ts.Exemplar(annotation))
-		} else {
-			exemplars = append(exemplars, nil)
+			exemplars = append(exemplars, ts.Exemplar{Timestamp: dp.Timestamp, Annotation: annotation})
 		}
 	}
 
@@ -288,8 +284,6 @@ func iteratorToTsSeries(
 	if r.Error != nil {
 		return nil, nil, r.Error
 	}
-
-	fmt.Printf("LENGTH  %d vs %d\n", datapoints.Len(), len(exemplars))
 
 	return ts.NewSeries(metric.ID, datapoints, metric.Tags), exemplars, nil
 }

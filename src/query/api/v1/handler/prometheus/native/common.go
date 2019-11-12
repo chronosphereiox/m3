@@ -26,7 +26,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -270,9 +269,6 @@ func renderResultsJSON(
 	keepNans bool,
 	includeExemplars bool,
 ) {
-	debug.PrintStack()
-	fmt.Printf("result: %+v\n", result)
-
 	series := result.SeriesList
 	params := result.RequestParams
 
@@ -315,14 +311,9 @@ func renderResultsJSON(
 		var exemplars ts.SeriesExemplar
 		if includeExemplars && seriesIdx < len(result.ExemplarsList) {
 			exemplars = result.ExemplarsList[seriesIdx]
-			fmt.Printf("exemplars: %+v\n", exemplars)
 		}
 		length := s.Len()
 		examplarIdx := 0
-		if len(exemplars) > vals.Len() {
-			examplarIdx = len(exemplars) - vals.Len()
-		}
-		fmt.Printf("len %d vs %d; dp: %+v\nex: %+v\n", vals.Len(), len(exemplars), vals, exemplars)
 		for timeIdx := 0; timeIdx < length; timeIdx++ {
 			dp := vals.DatapointAt(timeIdx)
 
@@ -344,11 +335,18 @@ func renderResultsJSON(
 			jw.WriteInt(int(dp.Timestamp.Unix()))
 			jw.WriteString(utils.FormatFloat(dp.Value))
 			if includeExemplars && examplarIdx < len(exemplars) {
-				if exemplars[examplarIdx] != nil {
-					e := strings.Split(strings.Split(string(exemplars[examplarIdx]), "trace_id")[1], ":")[0][2:]
-					jw.WriteString(e)
+				if exemplars[examplarIdx].Timestamp.Unix() <= dp.Timestamp.Unix() {
+					for {
+						i := examplarIdx + 1
+						if i < len(exemplars) && exemplars[i].Timestamp.Unix() <= dp.Timestamp.Unix() {
+							examplarIdx++
+						} else {
+							break
+						}
+					}
+					jw.WriteString(string(exemplars[examplarIdx].Annotation))
+					examplarIdx++
 				}
-				examplarIdx++
 			}
 			jw.EndArray()
 		}

@@ -20,8 +20,13 @@
 
 package ts
 
+import "time"
+
 // Exemplar holds the exemplar information for a datapoint.
-type Exemplar []byte
+type Exemplar struct {
+	Timestamp  time.Time
+	Annotation []byte
+}
 
 // SeriesExemplar is an array of exemplars corresponding to a series.
 type SeriesExemplar []Exemplar
