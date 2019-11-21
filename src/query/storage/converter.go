@@ -120,10 +120,15 @@ func PromSamplesToM3DatapointsAnnotated(samples []prompb.Sample) Datapoints {
 		var annotation []byte
 		if sample.Exemplar != nil {
 			var buf bytes.Buffer
+			first := true
 			for _, label := range sample.Exemplar.Labels {
+				if !first {
+					buf.WriteByte(';')
+				}
 				buf.Write(label.Name)
 				buf.WriteByte(':')
 				buf.Write(label.Value)
+				first = false
 			}
 			annotation = buf.Bytes()
 		}
