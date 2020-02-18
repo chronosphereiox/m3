@@ -306,7 +306,12 @@ func (t Tags) TagsWithKeys(includeKeys [][]byte) Tags {
 
 // WithoutName copies the tags excluding the name tag.
 func (t Tags) WithoutName() Tags {
-	return t.TagsWithoutKeys([][]byte{t.Opts.MetricName()})
+	name := []byte("__name__")
+	if t.Opts != nil {
+		name = t.Opts.MetricName()
+	}
+
+	return t.TagsWithoutKeys([][]byte{name})
 }
 
 // Get returns the value for the tag with the given name.
@@ -454,7 +459,7 @@ func (t Tags) Normalize() Tags {
 	return t
 }
 
-// HashedID returns the hashed ID for the tags.
+// Reset resets the tags.
 func (t Tags) Reset() Tags {
 	t.Tags = t.Tags[:0]
 	return t

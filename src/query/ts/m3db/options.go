@@ -122,6 +122,10 @@ func (o *encodedBlockOptions) ConsolidationFunc() consolidators.ConsolidationFun
 
 func (o *encodedBlockOptions) SetTagOptions(tagOptions models.TagOptions) Options {
 	opts := *o
+	if tagOptions == nil {
+		tagOptions = models.NewTagOptions()
+	}
+
 	opts.tagOptions = tagOptions
 	return &opts
 }
